@@ -44,8 +44,9 @@ adminRouter.get("/companies/:userId/dashboard", async (req, res) => {
       return;
     }
 
-    const stats = await getGscStats(user.refreshToken, ob.siteUrl);
-    res.json({ site: ob.siteUrl, niche: ob.niche, competitors: ob.competitors, ...stats });
+    const days = ([7, 28, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 28) as 7 | 28 | 90;
+    const stats = await getGscStats(user.refreshToken, ob.siteUrl, days);
+    res.json({ site: ob.siteUrl, niche: ob.niche, competitors: ob.competitors, days, ...stats });
   } catch (err) {
     logger.error({ err }, "Admin dashboard fetch failed");
     res.status(502).json({ error: "gsc_error" });

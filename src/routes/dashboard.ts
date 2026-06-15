@@ -8,8 +8,18 @@ import { logger } from "../lib/logger.js";
 
 export const dashboardRouter = Router();
 
+const VALID_DAYS = [7, 28, 90] as const;
+type Days = (typeof VALID_DAYS)[number];
+
+function parseDays(raw: unknown): Days {
+  const n = Number(raw);
+  return (VALID_DAYS.includes(n as Days) ? n : 28) as Days;
+}
+
 dashboardRouter.get("/", verifyToken, async (req, res) => {
   try {
+    const days = parseDays(req.query.days);
+
     const [user, ob] = await Promise.all([
       db.query.users.findFirst({ where: eq(users.id, req.user!.userId) }),
       db.query.onboarding.findFirst({ where: eq(onboarding.userId, req.user!.userId) }),
@@ -24,8 +34,8 @@ dashboardRouter.get("/", verifyToken, async (req, res) => {
       return;
     }
 
-    const stats = await getGscStats(user.refreshToken, ob.siteUrl);
-    res.json({ site: ob.siteUrl, niche: ob.niche, ...stats });
+    const stats = await getGscStats(user.refreshToken, ob.siteUrl, days);
+    res.json({ site: ob.siteUrl, niche: ob.niche, days, ...stats });
   } catch (err) {
     logger.error({ err }, "Dashboard fetch failed");
     res.status(502).json({ error: "gsc_error" });

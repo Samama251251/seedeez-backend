@@ -48,39 +48,52 @@ function createGscClient(refreshToken: string) {
   return google.webmasters({ version: "v3", auth: client });
 }
 
-function last28Days(): { startDate: string; endDate: string } {
+function dateRange(days: number): { startDate: string; endDate: string } {
   const fmt = (d: Date) => d.toISOString().split("T")[0]!;
   const end = new Date();
   const start = new Date();
-  start.setDate(start.getDate() - 28);
+  start.setDate(start.getDate() - days);
   return { startDate: fmt(start), endDate: fmt(end) };
 }
 
-export async function getGscStats(refreshToken: string, siteUrl: string) {
+export async function getGscStats(
+  refreshToken: string,
+  siteUrl: string,
+  days: 7 | 28 | 90 = 28,
+) {
   const gsc = createGscClient(refreshToken);
-  const { startDate, endDate } = last28Days();
+  const base = dateRange(days);
 
-  const base = { startDate, endDate };
-
-  const [trendRes, queriesRes, pagesRes] = await Promise.all([
-    gsc.searchanalytics.query({
-      siteUrl,
-      requestBody: { ...base, dimensions: ["date"], rowLimit: 28 },
-    }),
-    gsc.searchanalytics.query({
-      siteUrl,
-      requestBody: { ...base, dimensions: ["query"], rowLimit: 10 },
-    }),
-    gsc.searchanalytics.query({
-      siteUrl,
-      requestBody: { ...base, dimensions: ["page"], rowLimit: 10 },
-    }),
-  ]);
+  const [trendRes, queriesRes, pagesRes, devicesRes, countriesRes] =
+    await Promise.all([
+      gsc.searchanalytics.query({
+        siteUrl,
+        requestBody: { ...base, dimensions: ["date"], rowLimit: days },
+      }),
+      gsc.searchanalytics.query({
+        siteUrl,
+        requestBody: { ...base, dimensions: ["query"], rowLimit: 50 },
+      }),
+      gsc.searchanalytics.query({
+        siteUrl,
+        requestBody: { ...base, dimensions: ["page"], rowLimit: 10 },
+      }),
+      gsc.searchanalytics.query({
+        siteUrl,
+        requestBody: { ...base, dimensions: ["device"], rowLimit: 3 },
+      }),
+      gsc.searchanalytics.query({
+        siteUrl,
+        requestBody: { ...base, dimensions: ["country"], rowLimit: 5 },
+      }),
+    ]);
 
   return {
     trend: trendRes.data.rows ?? [],
     queries: queriesRes.data.rows ?? [],
     pages: pagesRes.data.rows ?? [],
+    devices: devicesRes.data.rows ?? [],
+    countries: countriesRes.data.rows ?? [],
   };
 }
 
