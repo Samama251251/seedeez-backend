@@ -18,6 +18,7 @@
     "drizzle-orm": "^0.44.1",
     "express": "^5.1.0",
     "googleapis": "^173.0.0",
+    "groq-sdk": "^1.2.1",
     "jsonwebtoken": "^9.0.3",
     "pino": "^9.7.0",
     "pino-http": "^10.4.0",

@@ -4,7 +4,16 @@ import { db } from "../db/index.js";
 import { users, onboarding } from "../db/schema/index.js";
 import { verifyToken } from "../middleware/auth.js";
 import { listGscSites } from "../lib/google.js";
+import { suggestNicheAndCompetitors } from "../lib/groq.js";
 import { logger } from "../lib/logger.js";
+
+function toBareDomain(siteUrl: string): string {
+  return siteUrl
+    .replace(/^sc-domain:/, "")
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/+$/, "");
+}
 
 export const onboardingRouter = Router();
 
@@ -29,6 +38,18 @@ onboardingRouter.get("/gsc-sites", verifyToken, async (req, res) => {
     logger.error({ err }, "Failed to list GSC sites");
     res.status(502).json({ error: "gsc_error" });
   }
+});
+
+onboardingRouter.post("/suggest", verifyToken, async (req, res) => {
+  const { siteUrl } = req.body as { siteUrl?: string };
+
+  if (!siteUrl) {
+    res.status(400).json({ error: "siteUrl is required" });
+    return;
+  }
+
+  const suggestion = await suggestNicheAndCompetitors(toBareDomain(siteUrl));
+  res.json(suggestion);
 });
 
 onboardingRouter.post("/", verifyToken, async (req, res) => {

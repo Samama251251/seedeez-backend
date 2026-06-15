@@ -15,4 +15,5 @@ export const env = {
   oauthRedirectUri: required("OAUTH_REDIRECT_URI"),
   jwtSecret: required("JWT_SECRET"),
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:3000",
+  groqApiKey: process.env.GROQ_API_KEY,
 } as const;
