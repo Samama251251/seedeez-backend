@@ -13,7 +13,25 @@ import { adminRouter } from "./routes/admin.js";
 
 export const app = express();
 
-app.use(cors({ origin: env.frontendUrl, credentials: true }));
+const allowedOrigins = [
+  env.frontendUrl,
+  "http://localhost:3000",
+  "https://www.seedeez.com",
+  "https://seedeez.com",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use(pinoHttp({ logger }));
