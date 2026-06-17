@@ -1,0 +1,21 @@
+{
+  "providerId": "seedeez.com",
+  "providerName": "Seedeez",
+  "serviceId": "blog",
+  "serviceName": "Seedeez Blog",
+  "version": 1,
+  "logoUrl": "https://seedeez.com/logo.png",
+  "description": "Connect a subdomain of your domain to your Seedeez blog.",
+  "variableDescription": "subdomain: the label to host your blog on (default: blog)",
+  "syncPubKeyDomain": "_dcpubkeyv1.seedeez.com",
+  "syncRedirectDomain": "seedeez.com,api.seedeez.com",
+  "warnPhishing": true,
+  "records": [
+    {
+      "type": "CNAME",
+      "host": "%subdomain%",
+      "pointsTo": "cname.seedeez.com",
+      "ttl": 3600
+    }
+  ]
+}
