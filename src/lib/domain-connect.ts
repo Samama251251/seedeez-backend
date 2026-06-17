@@ -1,6 +1,13 @@
-import { resolveTxt } from "node:dns/promises";
+import { Resolver } from "node:dns/promises";
 import { createSign } from "node:crypto";
 import { env } from "../config/env.js";
+
+// Bounded DNS resolver: a domain without a _domainconnect record must fail fast
+// (fall back to manual tier) instead of hanging the connect request. Without
+// this, an un-DC domain can stall the whole POST for 15-30s.
+const DNS_TIMEOUT_MS = 2500;
+const SETTINGS_TIMEOUT_MS = 3000;
+const resolver = new Resolver({ timeout: DNS_TIMEOUT_MS, tries: 1 });
 
 // Domain Connect — we act as the Service Provider. We discover the customer's
 // DNS host, confirm it supports the synchronous (urlSyncUX) flow, and build a
@@ -45,12 +52,12 @@ const ONBOARDED_PROVIDER_IDS = new Set<string>([
 // Step 1: discover the DNS host's API root from the _domainconnect TXT record.
 async function discoverUrlPrefix(domain: string): Promise<string | null> {
   try {
-    const records = await resolveTxt(`_domainconnect.${domain}`);
+    const records = await resolver.resolveTxt(`_domainconnect.${domain}`);
     // resolveTxt returns string[][] (chunks per record); join chunks, take first.
     const value = records[0]?.join("").trim();
     return value || null;
   } catch {
-    // NXDOMAIN / no TXT => Domain Connect not enabled for this domain.
+    // NXDOMAIN / no TXT / timeout => Domain Connect not enabled for this domain.
     return null;
   }
 }
@@ -62,7 +69,9 @@ async function fetchSettings(
 ): Promise<DomainConnectSettings | null> {
   const base = urlPrefix.startsWith("http") ? urlPrefix : `https://${urlPrefix}`;
   try {
-    const res = await fetch(`${base}/v2/${domain}/settings`);
+    const res = await fetch(`${base}/v2/${domain}/settings`, {
+      signal: AbortSignal.timeout(SETTINGS_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     return (await res.json()) as DomainConnectSettings;
   } catch {
