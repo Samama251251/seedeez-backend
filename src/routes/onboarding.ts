@@ -5,6 +5,7 @@ import { users, onboarding } from "../db/schema/index.js";
 import { verifyToken } from "../middleware/auth.js";
 import { listGscSites } from "../lib/google.js";
 import { suggestNicheAndCompetitors } from "../lib/groq.js";
+import { fetchSiteText } from "../lib/scrape.js";
 import { logger } from "../lib/logger.js";
 
 function toBareDomain(siteUrl: string): string {
@@ -48,7 +49,9 @@ onboardingRouter.post("/suggest", verifyToken, async (req, res) => {
     return;
   }
 
-  const suggestion = await suggestNicheAndCompetitors(toBareDomain(siteUrl));
+  const domain = toBareDomain(siteUrl);
+  const siteText = await fetchSiteText(domain);
+  const suggestion = await suggestNicheAndCompetitors(domain, siteText);
   res.json(suggestion);
 });
 

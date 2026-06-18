@@ -1,15 +1,16 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { users, onboarding } from "../db/schema/index.js";
+import { users, onboarding, domains } from "../db/schema/index.js";
 import { verifyToken } from "../middleware/auth.js";
 
 export const meRouter = Router();
 
 meRouter.get("/", verifyToken, async (req, res) => {
-  const [user, ob] = await Promise.all([
+  const [user, ob, domain] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, req.user!.userId) }),
     db.query.onboarding.findFirst({ where: eq(onboarding.userId, req.user!.userId) }),
+    db.query.domains.findFirst({ where: eq(domains.userId, req.user!.userId) }),
   ]);
 
   if (!user) {
@@ -26,6 +27,10 @@ meRouter.get("/", verifyToken, async (req, res) => {
     onboarded: !!ob?.completedAt,
     site: ob?.completedAt
       ? { siteUrl: ob.siteUrl, niche: ob.niche, competitors: ob.competitors }
+      : null,
+    // Domain connection summary so the app can gate on it and show status.
+    domain: domain
+      ? { status: domain.status, fullHostname: domain.fullHostname }
       : null,
   });
 });

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { resolveCname } from "node:dns/promises";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { domains } from "../db/schema/index.js";
@@ -188,6 +189,34 @@ domainsRouter.post("/", verifyToken, async (req, res) => {
       : null,
     cname: manualInstructions(fullHostname),
   });
+});
+
+// GET /api/domains/check-dns — live DNS lookup of the customer's CNAME, so we
+// can tell immediately whether the record actually exists (rather than letting
+// the user click "I've added it" and then spin waiting for a cert that will
+// never issue). Note: a Cloudflare-proxied (orange-cloud) record hides the
+// CNAME from public DNS, so `found: false` doesn't always mean "missing" — the
+// UI offers a "verify anyway" path that falls back to Cloudflare's own check.
+domainsRouter.get("/check-dns", verifyToken, async (req, res) => {
+  const existing = await db.query.domains.findFirst({
+    where: eq(domains.userId, req.user!.userId),
+  });
+  if (!existing) {
+    res.status(404).json({ error: "no_domain" });
+    return;
+  }
+
+  const target = env.cloudflareFallbackOrigin.toLowerCase().replace(/\.$/, "");
+  let observed: string[] = [];
+  try {
+    const cnames = await resolveCname(existing.fullHostname);
+    observed = cnames.map((c) => c.toLowerCase().replace(/\.$/, ""));
+  } catch {
+    // ENODATA/ENOTFOUND/SERVFAIL → no public CNAME (not added, still
+    // propagating, or proxied). Leave observed empty.
+  }
+  const found = observed.some((c) => c === target || c.endsWith(`.${target}`));
+  res.json({ found, target, observed });
 });
 
 // GET /api/domains/status — poll endpoint; refreshes from Cloudflare.
